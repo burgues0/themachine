@@ -1,0 +1,15 @@
+import argparse
+
+parser = argparse.ArgumentParser(
+    prog='themachine',
+    description='Another yt-dlp based script, focused on "searching" full albums with quality.')
+
+parser.add_argument('-u', '--url',
+    help="Reference URL of choice.")
+parser.add_argument('-e', '--extension',
+    help="Determine the file extension of the output.")
+parser.add_argument('-b', '--bitrate',
+    help="Determine the bitrate of the output.")
+parser.add_argument('-c', '--check',
+    action='store_true',
+    help="Check if the output matches the expected result.")
