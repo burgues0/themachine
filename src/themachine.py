@@ -19,6 +19,8 @@ def fetch_album_songs(url):
             if 'entries' in info:
                 song_urls = [entry['url'] for entry in info['entries']]
                 return song_urls
+            else:
+                return url
 
         except Exception as e:
             print(f"Error extracting album/playlist info: {e}")
@@ -48,7 +50,7 @@ def download_song(url, extension, bitrate):
 def themachine():
     args = get_args()
 
-    songs = fetch_album(args.url)
+    songs = fetch_album_songs(args.url)
 
     with ThreadPoolExecutor(max_workers=3) as executor:
         executor.map(download_song(args.url, args.extension, args.bitrate), songs)

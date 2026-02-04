@@ -1,7 +1,7 @@
-from args import get_args
+from themachine import themachine
 
 def main():
-    args = get_args()
+    themachine()
 
 if __name__ == "__main__":
     main()
