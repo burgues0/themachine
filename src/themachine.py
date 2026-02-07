@@ -8,25 +8,38 @@ def fetch_album_songs(url):
     ydl_opts = {
         'quiet': True,
         'no_warnings': True,
-        'extract_flat': True
+        'extract_flat': 'in_playlist'
     }
-
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         try:
             info = ydl.extract_info(url, download=False)
             if 'entries' in info:
                 song_urls = [entry['url'] for entry in info['entries']]
-                filenames = [f"{entry.get('channel', 'Unknown')} - {entry.get('title', 'Unknown')}" 
-                            for entry in info['entries']]
+                album_name = info.get('title', 'Unknown Album').replace('Album - ', '').strip()
+                filenames = []
+                for entry in info['entries']:
+                    artist = entry.get('artist', entry.get('uploader', 'Unknown'))
+                    if isinstance(artist, list):
+                        artist = artist[0]
+                    artist = artist.split(',')[0].strip()
+                    
+                    title = entry.get('title', 'Unknown')
+                    filenames.append(f"{artist} - {album_name} - {title}")
                 return song_urls, filenames
             else:
-                filename = f"{info.get('channel', 'Unknown')} - {info.get('title', 'Unknown')}"
+                artist = info.get('artist', info.get('uploader', 'Unknown'))
+                if isinstance(artist, list):
+                    artist = artist[0]
+                artist = artist.split(',')[0].strip()
+                album = info.get('album', 'Unknown')
+                title = info.get('title', 'Unknown')
+                filename = f"{artist} - {album} - {title}"
                 return [url], [filename]
         except Exception as e:
             print(f"Error extracting album/playlist info: {e}")
             return [], []
 
-def download_song(url, extension, bitrate):
+def download_song(url, extension, bitrate, filename):
     ydl_opts = {
         'format': 'bestaudio/best',
         'writethumbnail': True,
@@ -36,7 +49,7 @@ def download_song(url, extension, bitrate):
         'retries': 10,
         'fragment_retries': 10,
         'file_access_retries': 3,
-        'outtmpl': '%(channel)s - %(title)s.%(ext)s',
+        'outtmpl': f'{filename}.%(ext)s',
         'postprocessors': [
             {
                 'key': 'FFmpegExtractAudio',
@@ -55,11 +68,9 @@ def download_song(url, extension, bitrate):
         'postprocessor_args': {
             'ffmpeg': [
                 '-vf', 'crop=ih:ih:(iw-ih)/2:0',
-                '-write_xing', '0'
             ],
         },
     }
-
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         try:
             ydl.download([url])
@@ -86,7 +97,7 @@ def themachine():
         def download_with_progress(url):
             task_id, index = tasks[url]
             try:
-                download_song(url, args.extension, args.bitrate)
+                download_song(url, args.extension, args.bitrate, filenames[index])
                 progress.update(task_id, completed=1, description=f"[green]{filenames[index]}")
             except Exception as e:
                 progress.update(task_id, completed=1, description=f"[red]{filenames[index]} - Error")
