@@ -69,7 +69,6 @@ def download_song(url, extension, bitrate):
 def themachine():
     args = get_args()
     songs, filenames = fetch_album_songs(args.url)
-    
     console = Console()
     
     with Progress(
@@ -79,15 +78,18 @@ def themachine():
         TaskProgressColumn(),
         console=console
     ) as progress:
-        tasks = {url: progress.add_task(f"[red]{filename}", total=1) 
-                 for url, filename in zip(songs, filenames)}
-        
+        tasks = {}
+        for i, (url, filename) in enumerate(zip(songs, filenames)):
+            task_id = progress.add_task(f"[red]{filename}", total=1)
+            tasks[url] = (task_id, i)
+
         def download_with_progress(url):
+            task_id, index = tasks[url]
             try:
                 download_song(url, args.extension, args.bitrate)
-                progress.update(tasks[url], completed=1, description=f"[green]{filenames[songs.index(url)]}")
+                progress.update(task_id, completed=1, description=f"[green]{filenames[index]}")
             except Exception as e:
-                progress.update(tasks[url], completed=1, description=f"[red]{filenames[songs.index(url)]} - Error")
+                progress.update(task_id, completed=1, description=f"[red]{filenames[index]} - Error")
         
         with ThreadPoolExecutor(max_workers=3) as executor:
             futures = [executor.submit(download_with_progress, url) for url in songs]
