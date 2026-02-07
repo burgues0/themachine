@@ -43,6 +43,12 @@ def download_song(url, extension, bitrate):
     ydl_opts = {
         'format': 'bestaudio/best',
         'writethumbnail': True,
+        'quiet': True,
+        'no_warnings': True,
+        'retries': 10,
+        'fragment_retries': 10,
+        'file_access_retries': 3,
+        'outtmpl': '%(channel)s - %(title)s.%(ext)s',
         'postprocessors': [
             {
                 'key': 'FFmpegExtractAudio',
@@ -52,20 +58,18 @@ def download_song(url, extension, bitrate):
             {
                 'key': 'FFmpegThumbnailsConvertor',
                 'format': 'jpg',
-                'when': 'before_dl',
             },
             {
-                'key': 'EmbedThumbnail'
-            },
-            {
-                'key': 'FFmpegMetadata',
-                'add_metadata': True
+                'key': 'EmbedThumbnail',
+                'already_have_thumbnail': False,
             },
         ],
-        # 'progress_hooks': [progress_hook],
-        'outtmpl': '%(uploader)s - %(title)s.%(ext)s',
-        'quiet': True,
-        'no_warnings': True
+        'postprocessor_args': {
+            'ffmpeg': [
+                '-vf', 'crop=ih:ih:(iw-ih)/2:0',
+                '-write_xing', '0'
+            ],
+        },
     }
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -83,6 +87,10 @@ def themachine():
     songs = fetch_album_songs(args.url)
 
     with ThreadPoolExecutor(max_workers=3) as executor:
-        executor.map(download_song(args.url, args.extension, args.bitrate), songs)
+        futures = [
+            executor.submit(download_song, url, args.extension, args.bitrate) for url in songs
+        ]
+        for future in futures:
+            future.result()
 
     return True
