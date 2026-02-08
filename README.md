@@ -15,9 +15,13 @@ python main.py [args]
 ## Arguments
 
 **-h**/**--help**: show the help message and exit
+
 **-u**/**--url**: reference URL of choice.
+
 **-e**/**--extension**: determine the file extension of the output.
+
 **-b**/**--bitrate**: determine the bitrate of the output.
+
 **-c**/**--check**: check if the output matches the expected result.
 
 ### Example
