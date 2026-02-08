@@ -31,7 +31,7 @@ $ python main.py --help
 
 usage: themachine [-h] -u URL [-e {mp3,flac,wav}] [-b BITRATE] [-c]
 
-Another yt-dlp based script, focused on "searching" full albums with quality.
+Another yt-dlp based script, focused on "searching" full albums.
 
 options:
   -h, --help            show this help message and exit

@@ -1,7 +1,7 @@
 import argparse
 
 def get_args():
-    parser = argparse.ArgumentParser(prog='themachine', description='Another yt-dlp based script, focused on "searching" full albums with quality.')
+    parser = argparse.ArgumentParser(prog='themachine', description='Another yt-dlp based script, focused on "searching" full albums.')
 
     parser.add_argument('-u', '--url', required=True, help="reference URL of choice.")
     parser.add_argument('-e', '--extension', choices=['mp3', 'flac', 'wav'], default='flac', help="determine the file extension of the output.")
