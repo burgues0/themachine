@@ -5,8 +5,6 @@ from rich.console import Console
 from args import get_args
 from concurrent.futures import ThreadPoolExecutor
 from mutagen.flac import FLAC
-from mutagen.mp3 import MP3
-from mutagen.id3 import ID3, TIT2, TPE1, TALB, TDRC, TRCK
 from pathlib import Path
 
 def extract_first_artist(artist_field):
@@ -17,6 +15,24 @@ def extract_first_artist(artist_field):
     if artist_field and artist_field != 'Unknown':
         return artist_field.split(',')[0].strip()
     return 'Unknown'
+
+def create_metadata_dict(artist, album, title, track, total_tracks, year, album_artist, genre, song_url, disc='1', composer='', copyright=''):
+    return {
+        'artist': artist,
+        'album': album,
+        'title': title,
+        'track': track,
+        'totaltracks': total_tracks,
+        'date': year,
+        'albumartist': album_artist,
+        'genre': genre,
+        'comment': song_url,
+        'composer': composer,
+        'copyright': copyright,
+        'url': song_url,
+        'encoded_by': 'yt-dlp',
+        'disc': disc,
+    }
 
 def fetch_album_songs(url):
     ydl_opts_flat = {
@@ -64,22 +80,19 @@ def fetch_album_songs(url):
                     track_num = str(i + 1)
                     song_url = f"https://music.youtube.com/watch?v={entry.get('id', '')}"
                     
-                    metadata_list.append({
-                        'artist': artist,
-                        'album': album_name,
-                        'title': title,
-                        'track': track_num,
-                        'totaltracks': str(total_tracks),
-                        'date': album_year,
-                        'albumartist': album_artist,
-                        'genre': album_genre,
-                        'comment': song_url,
-                        'composer': '',
-                        'copyright': '',
-                        'url': song_url,
-                        'encoded_by': 'yt-dlp',
-                        'disc': '1',
-                    })
+                    metadata = create_metadata_dict(
+                        artist=artist,
+                        album=album_name,
+                        title=title,
+                        track=track_num,
+                        total_tracks=str(total_tracks),
+                        year=str(album_year),
+                        album_artist=album_artist,
+                        genre=album_genre,
+                        song_url=song_url,
+                        disc='1'
+                    )
+                    metadata_list.append(metadata)
                 
                 return song_urls, filenames, metadata_list
             else:
@@ -87,31 +100,27 @@ def fetch_album_songs(url):
                 album = info.get('album', 'Unknown')
                 title = info.get('title', 'Unknown')
                 
-                # Create output directory
                 base_dir = Path.home() / 'Music' / 'themachine' / artist / album
                 base_dir.mkdir(parents=True, exist_ok=True)
                 
                 filename_only = f"{artist} - {album} - {title}"
                 full_path = base_dir / filename_only
                 song_url = f"https://music.youtube.com/watch?v={info.get('id', '')}"
-
-                metadata = {
-                    'artist': artist,
-                    'album': album,
-                    'title': title,
-                    'track': '1',
-                    'totaltracks': '1',
-                    'date': str(info.get('release_year', '')),
-                    'albumartist': artist,
-                    'genre': info.get('genre', 'Music'),
-                    'comment': song_url,
-                    'composer': info.get('composer', ''),
-                    'copyright': info.get('license', ''),
-                    'url': song_url,
-                    'encoded_by': 'yt-dlp',
-                    'disc': '1',
-                }
-
+                
+                metadata = create_metadata_dict(
+                    artist=artist,
+                    album=album,
+                    title=title,
+                    track='1',
+                    total_tracks='1',
+                    year=str(info.get('release_year', '')),
+                    album_artist=artist,
+                    genre=info.get('genre', 'Music'),
+                    song_url=song_url,
+                    composer=info.get('composer', ''),
+                    copyright=info.get('license', '')
+                )
+                
                 return [url], [str(full_path)], [metadata]
         except Exception as e:
             print(f"Error extracting album/playlist info: {e}")
@@ -119,26 +128,27 @@ def fetch_album_songs(url):
 
 def add_metadata(filepath, metadata, extension):
     try:
-        if extension == 'flac':
-            audio = FLAC(filepath)
-            audio['TITLE'] = metadata['title']
-            audio['ARTIST'] = metadata['artist']
-            audio['ALBUM'] = metadata['album']
-            audio['ALBUMARTIST'] = metadata['albumartist']
-            audio['TRACKNUMBER'] = metadata['track']
-            audio['TRACKTOTAL'] = metadata['totaltracks']
-            audio['DISCNUMBER'] = metadata['disc']
-            audio['GENRE'] = metadata['genre']
-            audio['COMMENT'] = metadata['comment']
-            audio['URL'] = metadata['url']
-            audio['ENCODED-BY'] = metadata['encoded_by']
-            if metadata['date']:
-                audio['DATE'] = metadata['date']
-            if metadata['composer']:
-                audio['COMPOSER'] = metadata['composer']
-            if metadata['copyright']:
-                audio['COPYRIGHT'] = metadata['copyright']
-            audio.save()
+        if extension != 'flac':
+            raise NotImplementedError(f"Metadata for .{extension} format not implemented yet")
+        audio = FLAC(filepath)
+        audio['TITLE'] = metadata['title']
+        audio['ARTIST'] = metadata['artist']
+        audio['ALBUM'] = metadata['album']
+        audio['ALBUMARTIST'] = metadata['albumartist']
+        audio['TRACKNUMBER'] = metadata['track']
+        audio['TRACKTOTAL'] = metadata['totaltracks']
+        audio['DISCNUMBER'] = metadata['disc']
+        audio['GENRE'] = metadata['genre']
+        audio['COMMENT'] = metadata['comment']
+        audio['URL'] = metadata['url']
+        audio['ENCODED-BY'] = metadata['encoded_by']
+        if metadata['date']:
+            audio['DATE'] = metadata['date']
+        if metadata['composer']:
+            audio['COMPOSER'] = metadata['composer']
+        if metadata['copyright']:
+            audio['COPYRIGHT'] = metadata['copyright']
+        audio.save()
     except Exception as e:
         print(f"Error adding metadata to {filepath}: {e}")
 
@@ -197,7 +207,6 @@ def themachine():
     ) as progress:
         tasks = {}
         for i, (url, filename) in enumerate(zip(songs, filenames)):
-
             display_name = Path(filename).name
             task_id = progress.add_task(f"[red]{display_name}", total=1)
             tasks[url] = (task_id, i)
