@@ -16,6 +16,22 @@ def extract_first_artist(artist_field):
         return artist_field.split(',')[0].strip()
     return 'Unknown'
 
+def sanitize_filename(filename):
+    invalid_chars = {
+        '/': '-',
+        '\\': '-',
+        ':': '-',
+        '*': '',
+        '?': '',
+        '"': '',
+        '<': '',
+        '>': '',
+        '|': ''
+    }
+    for char, replacement in invalid_chars.items():
+        filename = filename.replace(char, replacement)
+    return filename
+
 def create_metadata_dict(artist, album, title, track, total_tracks, year, album_artist, genre, song_url, disc='1', composer='', copyright=''):
     return {
         'artist': artist,
@@ -74,6 +90,7 @@ def fetch_album_songs(url):
                     title = entry.get('title', 'Unknown')
 
                     filename_only = f"{artist} - {album_name} - {title}"
+                    filename_only = sanitize_filename(filename_only)
                     full_path = base_dir / filename_only
                     filenames.append(str(full_path))
 
@@ -104,6 +121,7 @@ def fetch_album_songs(url):
                 base_dir.mkdir(parents=True, exist_ok=True)
                 
                 filename_only = f"{artist} - {album} - {title}"
+                filename_only = sanitize_filename(filename_only)
                 full_path = base_dir / filename_only
                 song_url = f"https://music.youtube.com/watch?v={info.get('id', '')}"
                 
