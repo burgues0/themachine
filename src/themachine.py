@@ -1,3 +1,4 @@
+import os
 import yt_dlp
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
 from rich.console import Console
@@ -6,7 +7,16 @@ from concurrent.futures import ThreadPoolExecutor
 from mutagen.flac import FLAC
 from mutagen.mp3 import MP3
 from mutagen.id3 import ID3, TIT2, TPE1, TALB, TDRC, TRCK
-import os
+from pathlib import Path
+
+def extract_first_artist(artist_field):
+    if not artist_field or artist_field == 'Unknown':
+        return 'Unknown'
+    if isinstance(artist_field, list):
+        artist_field = artist_field[0] if artist_field else 'Unknown'
+    if artist_field and artist_field != 'Unknown':
+        return artist_field.split(',')[0].strip()
+    return 'Unknown'
 
 def fetch_album_songs(url):
     ydl_opts_flat = {
@@ -23,31 +33,34 @@ def fetch_album_songs(url):
             info = ydl.extract_info(url, download=False)
             if 'entries' in info:
                 entries = [e for e in info['entries'] if e is not None]
+                if not entries:
+                    print("Error: Empty playlist")
+                    return [], [], []
+
                 song_urls = [entry['url'] for entry in entries]
                 album_name = info.get('title', 'Unknown Album').replace('Album - ', '').strip()
                 total_tracks = len(entries)
+
                 with yt_dlp.YoutubeDL(ydl_opts_full) as ydl_full:
                     first_song_full = ydl_full.extract_info(entries[0]['url'], download=False)
-                    album_artist = first_song_full.get('artist') or first_song_full.get('uploader', 'Unknown')
-                    if isinstance(album_artist, list):
-                        album_artist = album_artist[0] if album_artist else 'Unknown'
-                    if album_artist and album_artist != 'Unknown':
-                        album_artist = album_artist.split(',')[0].strip()
-                    
+                    album_artist = extract_first_artist(first_song_full.get('artist') or first_song_full.get('uploader'))
                     album_year = str(first_song_full.get('release_year', ''))
                     album_genre = first_song_full.get('genre', 'Music')
-                
+
+                base_dir = Path.home() / 'Music' / 'themachine' / album_artist / album_name
+                base_dir.mkdir(parents=True, exist_ok=True)
+
                 filenames = []
                 metadata_list = []
-                
+
                 for i, entry in enumerate(entries):
-                    artist = entry.get('channel') or 'Unknown'
-                    if artist and artist != 'Unknown':
-                        artist = artist.split(',')[0].strip()
-                    
+                    artist = extract_first_artist(entry.get('channel'))
                     title = entry.get('title', 'Unknown')
-                    filenames.append(f"{artist} - {album_name} - {title}")
-                    
+
+                    filename_only = f"{artist} - {album_name} - {title}"
+                    full_path = base_dir / filename_only
+                    filenames.append(str(full_path))
+
                     track_num = str(i + 1)
                     song_url = f"https://music.youtube.com/watch?v={entry.get('id', '')}"
                     
@@ -70,17 +83,18 @@ def fetch_album_songs(url):
                 
                 return song_urls, filenames, metadata_list
             else:
-                artist = info.get('artist') or info.get('uploader') or 'Unknown'
-                if isinstance(artist, list):
-                    artist = artist[0] if artist else 'Unknown'
-                if artist and artist != 'Unknown':
-                    artist = artist.split(',')[0].strip()
-                
+                artist = extract_first_artist(info.get('artist') or info.get('uploader'))
                 album = info.get('album', 'Unknown')
                 title = info.get('title', 'Unknown')
-                filename = f"{artist} - {album} - {title}"
-                song_url = f"https://music.youtube.com/watch?v={info.get('id', '')}"
                 
+                # Create output directory
+                base_dir = Path.home() / 'Music' / 'themachine' / artist / album
+                base_dir.mkdir(parents=True, exist_ok=True)
+                
+                filename_only = f"{artist} - {album} - {title}"
+                full_path = base_dir / filename_only
+                song_url = f"https://music.youtube.com/watch?v={info.get('id', '')}"
+
                 metadata = {
                     'artist': artist,
                     'album': album,
@@ -97,8 +111,8 @@ def fetch_album_songs(url):
                     'encoded_by': 'yt-dlp',
                     'disc': '1',
                 }
-                
-                return [url], [filename], [metadata]
+
+                return [url], [str(full_path)], [metadata]
         except Exception as e:
             print(f"Error extracting album/playlist info: {e}")
             return [], [], []
@@ -183,17 +197,20 @@ def themachine():
     ) as progress:
         tasks = {}
         for i, (url, filename) in enumerate(zip(songs, filenames)):
-            task_id = progress.add_task(f"[red]{filename}", total=1)
+
+            display_name = Path(filename).name
+            task_id = progress.add_task(f"[red]{display_name}", total=1)
             tasks[url] = (task_id, i)
-        
+
         def download_with_progress(url):
             task_id, index = tasks[url]
+            display_name = Path(filenames[index]).name
             try:
                 download_song(url, args.extension, args.bitrate, filenames[index], metadata_list[index])
-                progress.update(task_id, completed=1, description=f"[green]{filenames[index]}")
+                progress.update(task_id, completed=1, description=f"[green]{display_name}")
             except Exception as e:
-                progress.update(task_id, completed=1, description=f"[red]{filenames[index]} - Error")
-        
+                progress.update(task_id, completed=1, description=f"[red]{display_name} - Error")
+
         with ThreadPoolExecutor(max_workers=3) as executor:
             futures = [executor.submit(download_with_progress, url) for url in songs]
             for future in futures:
