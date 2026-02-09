@@ -89,6 +89,7 @@ def fetch_album_songs(url):
 
                 for i, entry in enumerate(entries):
                     artist = extract_first_artist(entry.get('channel'))
+                    artist = artist.replace(' - Topic', '').strip()
                     title = entry.get('title', 'Unknown')
 
                     filename_only = f"{artist} - {album_name} - {title}"
@@ -116,6 +117,7 @@ def fetch_album_songs(url):
                 return song_urls, filenames, metadata_list
             else:
                 artist = extract_first_artist(info.get('artist') or info.get('uploader'))
+                artist = artist.replace(' - Topic', '').strip()
                 album = info.get('album', 'Unknown')
                 title = info.get('title', 'Unknown')
                 
