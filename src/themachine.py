@@ -54,11 +54,13 @@ def fetch_album_songs(url):
     ydl_opts_flat = {
         'quiet': True,
         'no_warnings': True,
-        'extract_flat': 'in_playlist'
+        'extract_flat': 'in_playlist',
+        'cookiesfrombrowser': ('firefox')
     }
     ydl_opts_full = {
         'quiet': True,
         'no_warnings': True,
+        'cookiesfrombrowser': ('firefox')
     }
     with yt_dlp.YoutubeDL(ydl_opts_flat) as ydl:
         try:
@@ -180,6 +182,7 @@ def download_song(url, extension, bitrate, filename, metadata):
         'retries': 10,
         'fragment_retries': 10,
         'file_access_retries': 3,
+        'cookiesfrombrowser': ('firefox')
         'outtmpl': f'{filename}.%(ext)s',
         'postprocessors': [
             {
