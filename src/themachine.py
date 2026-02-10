@@ -115,10 +115,9 @@ def fetch_album_songs(url, artist_override, album_override, year_override, genre
                 
                 return song_urls, filenames, metadata_list
             else:
-                artist = extract_first_artist(info.get('artist') or info.get('uploader'))
-                artist = artist.replace(' - Topic', '').strip()
-                album = info.get('album', 'Unknown')
-                title = info.get('title', 'Unknown')
+                artist = artist_override if artist_override else extract_first_artist(info.get('artist') or info.get('uploader'))
+                album = album_override if album_override else info.get('album', 'Unknown')
+                title = title_override if title_override else info.get('title', 'Unknown')
                 
                 base_dir = Path.home() / 'Music' / 'themachine' / artist / album
                 base_dir.mkdir(parents=True, exist_ok=True)
