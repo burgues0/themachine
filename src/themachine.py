@@ -50,7 +50,7 @@ def create_metadata_dict(artist, album, title, track, total_tracks, year, album_
         'disc': disc,
     }
 
-def fetch_album_songs(url):
+def fetch_album_songs(url, artist_override, album_override, year_override, genre_override, title_override):
     ydl_opts_flat = {
         'quiet': True,
         'no_warnings': True,
@@ -72,14 +72,14 @@ def fetch_album_songs(url):
                     return [], [], []
 
                 song_urls = [entry['url'] for entry in entries]
-                album_name = info.get('title', 'Unknown Album').replace('Album - ', '').strip()
+                album_name = album_override if album_override else info.get('title', 'Unknown Album').replace('Album - ', '').strip()
                 total_tracks = len(entries)
 
                 with yt_dlp.YoutubeDL(ydl_opts_full) as ydl_full:
                     first_song_full = ydl_full.extract_info(entries[0]['url'], download=False)
-                    album_artist = extract_first_artist(first_song_full.get('artist') or first_song_full.get('uploader'))
-                    album_year = str(first_song_full.get('release_year', ''))
-                    album_genre = first_song_full.get('genre', 'Music')
+                    album_artist = artist_override if artist_override else extract_first_artist(first_song_full.get('artist') or first_song_full.get('uploader'))
+                    album_year = str(year_override) if year_override else str(first_song_full.get('release_year', ''))
+                    album_genre = genre_override if genre_override else first_song_full.get('genre', 'Music')
 
                 base_dir = Path.home() / 'Music' / 'themachine' / album_artist / album_name
                 base_dir.mkdir(parents=True, exist_ok=True)
@@ -88,9 +88,8 @@ def fetch_album_songs(url):
                 metadata_list = []
 
                 for i, entry in enumerate(entries):
-                    artist = extract_first_artist(entry.get('channel'))
-                    artist = artist.replace(' - Topic', '').strip()
-                    title = entry.get('title', 'Unknown')
+                    artist = album_artist
+                    title = title_override if title_override else entry.get('title', 'Unknown')
 
                     filename_only = f"{artist} - {album_name} - {title}"
                     filename_only = sanitize_filename(filename_only)
@@ -218,7 +217,31 @@ def download_song(url, extension, bitrate, filename, metadata):
 
 def themachine():
     args = get_args()
-    songs, filenames, metadata_list = fetch_album_songs(args.url)
+    songs, filenames, metadata_list = fetch_album_songs(args.url, args.artist, args.album, args.year, args.genre, args.title)
+
+    if not args.y:
+        console = Console()
+        console.print(f"\n[yellow]About to download {len(songs)} songs[/yellow]")
+
+        if filenames:
+            first_filename = Path(filenames[0]).name
+            parts = first_filename.rsplit('.', 1)[0].split(' - ', 2)
+            display_artist = parts[0] if len(parts) > 0 else 'Unknown'
+            display_album = parts[1] if len(parts) > 1 else 'Unknown'
+        else:
+            display_artist = 'Unknown'
+            display_album = 'Unknown'
+        
+        console.print(f"[cyan]Artist:[/cyan] {display_artist}")
+        console.print(f"[cyan]Album:[/cyan] {display_album}")
+        console.print(f"[cyan]Format:[/cyan] {args.extension}")
+        console.print(f"[cyan]Output:[/cyan] ~/Music/themachine/{display_artist}/{display_album}/")
+        
+        response = input("\nProceed with download? [Y/n]: ").strip().lower()
+        if response and response not in ['y', 'yes']:
+            print("Download cancelled.")
+            return False
+
     console = Console()
     
     with Progress(
