@@ -234,7 +234,7 @@ def themachine():
         console.print(f"[cyan]Artist:[/cyan] {display_artist}")
         console.print(f"[cyan]Album:[/cyan] {display_album}")
         console.print(f"[cyan]Format:[/cyan] {args.extension}")
-        console.print(f"[cyan]Output:[/cyan] ~/Music/themachine/{display_artist}/{display_album}/")
+        console.print(f"[cyan]Output:[/cyan] [yellow]~/Music/themachine/{display_artist}/{display_album}/[/yellow]")
         
         response = input("\nProceed with download? [Y/n]: ").strip().lower()
         if response and response not in ['y', 'yes']:
